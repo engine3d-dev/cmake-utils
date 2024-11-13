@@ -81,7 +81,7 @@ function(build_demos)
     find_package(EnTT REQUIRED)
 
     # Set Compiler definitions required for JoltPhysics
-    if(MSVC)
+    if(WIN32)
         set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
         set(global_definitions
             $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
@@ -90,26 +90,9 @@ function(build_demos)
             JPH_OBJECT_STREAM
         )
         target_include_directories(${PROJECT_NAME} PRIVATE ${global_definitions})
-    endif(MSVC)
+    endif(WIN32)
 
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        Vulkan::Vulkan
-        vulkan-headers::vulkan-headers
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
-        engine3d::engine3d
-    )
-
+    
     if(LINUX)
     target_link_libraries(
         ${PROJECT_NAME}
@@ -127,7 +110,25 @@ function(build_demos)
         EnTT::EnTT
         engine3d::engine3d
     )
-    endif(LINUX)
+    else()
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PRIVATE
+        glfw
+        ${OPENGL_LIBRARIES}
+        Vulkan::Vulkan
+        vulkan-headers::vulkan-headers
+        glm::glm
+        fmt::fmt
+        spdlog::spdlog
+        yaml-cpp::yaml-cpp
+        imguidocking::imguidocking
+        box2d::box2d
+        Jolt::Jolt
+        EnTT::EnTT
+        engine3d::engine3d
+    )
+    endif()
 endfunction()
 
 
@@ -173,7 +174,17 @@ function(build_library)
     find_package(box2d REQUIRED)
     find_package(joltphysics REQUIRED)
     find_package(EnTT REQUIRED)
-
+    
+    if(WIN32)
+        set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
+        set(global_definitions
+            $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
+            JPH_PROFILE_ENABLED
+            JPH_DEBUG_RENDERER
+            JPH_OBJECT_STREAM
+        )
+        target_include_directories(${PROJECT_NAME} PRIVATE ${global_definitions})
+    endif(WIN32)
 
     if(LINUX)
     target_link_libraries(
@@ -206,6 +217,7 @@ function(build_library)
         yaml-cpp::yaml-cpp
         imguidocking::imguidocking
         box2d::box2d
+        Jolt::Jolt
         EnTT::EnTT
     )
     endif()

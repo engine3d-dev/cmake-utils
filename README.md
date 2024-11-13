@@ -1,2 +1,3 @@
 # cmake-utils
-Utility CMake modules
+
+Simplifies application development.
