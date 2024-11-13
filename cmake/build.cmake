@@ -167,7 +167,8 @@ function(build_library)
     find_package(VulkanLoader REQUIRED)
     endif(LINUX)
 
-    target_include_directories(${PROJECT_NAME} PUBLIC ./)
+    # target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/Core ${ENGINE_INCLUDE_DIR}/Core/internal)
 
     find_package(glm REQUIRED)
     find_package(fmt REQUIRED)
@@ -178,24 +179,6 @@ function(build_library)
     find_package(joltphysics REQUIRED)
     find_package(EnTT REQUIRED)
 
-    if(WIN32)
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        Vulkan::Vulkan
-        vulkan-headers::vulkan-headers
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
-    )
-    endif(WIN32)
 
     if(LINUX)
     target_link_libraries(
@@ -213,9 +196,7 @@ function(build_library)
         Jolt::Jolt
         EnTT::EnTT
     )
-    endif(LINUX)
-
-    if(APPLE)
+    else()
     target_link_libraries(
         ${PROJECT_NAME}
         PRIVATE
@@ -231,6 +212,6 @@ function(build_library)
         box2d::box2d
         EnTT::EnTT
     )
-    endif(APPLE)
+    endif()
 endfunction()
 
