@@ -1,5 +1,4 @@
 # Generate compile commands for anyone using our libraries.
-# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works (in creating the compile_commands.json file)
 
 function(generate_compile_commands)
@@ -70,10 +69,7 @@ function(build_demos)
     find_package(VulkanLoader REQUIRED)
     endif(LINUX)
 
-    # Including
-    # target_include_directories(${PROJECT_NAME} PUBLIC ./ ./engine3d)
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
-    # target_include_directories(${PROJECT_NAME} PUBLIC ${JoltPhysics_SOURCE_DIR} ${GLM_INCLUDE_DIR} ./engine3d)
 
     find_package(glm REQUIRED)
     find_package(fmt REQUIRED)
@@ -84,8 +80,7 @@ function(build_demos)
     find_package(joltphysics REQUIRED)
     find_package(EnTT REQUIRED)
 
-    #Set Compiler definitions
-
+    # Set Compiler definitions required for JoltPhysics
     if(MSVC)
         set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
         set(global_definitions
@@ -167,8 +162,8 @@ function(build_library)
     find_package(VulkanLoader REQUIRED)
     endif(LINUX)
 
-    # target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
-    target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/Core ${ENGINE_INCLUDE_DIR}/Core/internal)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/Core)
+    target_include_directories(${PROJECT_NAME} PUBLIC ${JoltPhysics_SOURCE_DIR} ${GLM_INCLUDE_DIR} ${ENGINE_INCLUDE_DIR})
 
     find_package(glm REQUIRED)
     find_package(fmt REQUIRED)
@@ -187,6 +182,7 @@ function(build_library)
         glfw
         ${OPENGL_LIBRARIES}
         Vulkan::Loader
+        vulkan-headers::vulkan-headers
         glm::glm
         fmt::fmt
         spdlog::spdlog
@@ -203,7 +199,7 @@ function(build_library)
         glfw
         ${OPENGL_LIBRARIES}
         Vulkan::Vulkan
-        # vulkan-headers::vulkan-headers
+        vulkan-headers::vulkan-headers
         glm::glm
         fmt::fmt
         spdlog::spdlog
@@ -213,5 +209,7 @@ function(build_library)
         EnTT::EnTT
     )
     endif()
+
+    install(TARGETS ${PROJECT_NAME})
 endfunction()
 
