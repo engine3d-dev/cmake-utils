@@ -58,7 +58,8 @@ function(build_demos)
     if(MSVC)
         target_compile_options(${PROJECT_NAME} PUBLIC "/Z1" "/NOD")
     endif(MSVC)
-    
+    find_package(engine3d REQUIRED)
+
     find_package(OpenGL REQUIRED)
     find_package(glfw3 REQUIRED)
 
@@ -69,10 +70,10 @@ function(build_demos)
     find_package(VulkanLoader REQUIRED)
     endif(LINUX)
 
-    generate_compile_commands()
-
     # Including
-    target_include_directories(${PROJECT_NAME} PUBLIC ./)
+    # target_include_directories(${PROJECT_NAME} PUBLIC ./ ./engine3d)
+    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
+    # target_include_directories(${PROJECT_NAME} PUBLIC ${JoltPhysics_SOURCE_DIR} ${GLM_INCLUDE_DIR} ./engine3d)
 
     find_package(glm REQUIRED)
     find_package(fmt REQUIRED)
@@ -83,7 +84,19 @@ function(build_demos)
     find_package(joltphysics REQUIRED)
     find_package(EnTT REQUIRED)
 
-    if(WIN32)
+    #Set Compiler definitions
+
+    if(MSVC)
+        set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
+        set(global_definitions
+            $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
+            JPH_PROFILE_ENABLED
+            JPH_DEBUG_RENDERER
+            JPH_OBJECT_STREAM
+        )
+        target_include_directories(${PROJECT_NAME} PRIVATE ${global_definitions})
+    endif(MSVC)
+
     target_link_libraries(
         ${PROJECT_NAME}
         PRIVATE
@@ -99,8 +112,8 @@ function(build_demos)
         box2d::box2d
         Jolt::Jolt
         EnTT::EnTT
+        engine3d::engine3d
     )
-    endif(WIN32)
 
     if(LINUX)
     target_link_libraries(
@@ -117,26 +130,9 @@ function(build_demos)
         box2d::box2d
         Jolt::Jolt
         EnTT::EnTT
+        engine3d::engine3d
     )
     endif(LINUX)
-
-    if(APPLE)
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        Vulkan::Vulkan
-        # vulkan-headers::vulkan-headers
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        EnTT::EnTT
-    )
-    endif(APPLE)
 endfunction()
 
 
@@ -170,8 +166,6 @@ function(build_library)
     if(LINUX)
     find_package(VulkanLoader REQUIRED)
     endif(LINUX)
-
-    generate_compile_commands()
 
     target_include_directories(${PROJECT_NAME} PUBLIC ./)
 
