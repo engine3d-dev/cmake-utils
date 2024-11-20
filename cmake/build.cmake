@@ -35,193 +35,188 @@ function(generate_compile_commands)
     )
 endfunction()
 
-# Define the function that accepts a variable number of arguments
-# used for building applications
+# Assumes that our target_include_directories is engine3d.
+# This is only used for the engine3d project, specifically.
+# We also want to make sure that any engine3d related organization packages are ones we can add.
+
+# TODO: Probably want to modify this in the future.
 function(build_demos)
-  # Parse CMake function arguments
-  set(options)
-  set(one_value_args)
-  set(multi_value_args SOURCES INCLUDES PACKAGES LINK_LIBRARIES)
-  cmake_parse_arguments(DEMOS_ARGS
-    "${options}"
-    "${one_value_args}"
-    "${multi_value_args}"
-    ${ARGN})
+    # Parse CMake function arguments
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
 
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works (in creating the compile_commands.json file)
+    add_executable(${DEMOS_ARGS_PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
 
+endfunction()
+
+
+function(packages)
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+
+    # #Set Compiler definitions
+    set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
+    set(dev_definitions
+        $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
+        JPH_PROFILE_ENABLED
+        JPH_DEBUG_RENDERER
+        JPH_OBJECT_STREAM
+    )
+
+    target_compile_definitions(${PROJECT_NAME} PRIVATE ${dev_definitions})
+
+    foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
+        find_package(${PACKAGE} REQUIRED)
+    endforeach()
+
+    find_package(OpenGL REQUIRED)
+    find_package(Vulkan REQUIRED)
+    find_package(VulkanHeaders REQUIRED)
+    if(LINUX)
+        find_package(VulkanLoader REQUIRED)
+    endif()
+
+    find_package(glm REQUIRED)
+    find_package(fmt REQUIRED)
+    find_package(spdlog REQUIRED)
+    find_package(yaml-cpp REQUIRED)
+    find_package(imguidocking REQUIRED)
+    find_package(box2d REQUIRED)
+    find_package(joltphysics REQUIRED)
+    find_package(EnTT REQUIRED)
+
+
+    if(WIN32)
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PRIVATE
+        glfw
+        ${OPENGL_LIBRARIES}
+        Vulkan::Vulkan
+        vulkan-headers::vulkan-headers
+        glm::glm
+        fmt::fmt
+        spdlog::spdlog
+        yaml-cpp::yaml-cpp
+        imguidocking::imguidocking
+        box2d::box2d
+        Jolt::Jolt
+        EnTT::EnTT
+        ${DEMOS_ARGS_LINK_LIBRARIES}
+    )
+    endif(WIN32)
+
+    if(LINUX)
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PRIVATE
+        glfw
+        ${OPENGL_LIBRARIES}
+        vulkan-headers::vulkan-headers
+        Vulkan::Loader
+        glm::glm
+        fmt::fmt
+        spdlog::spdlog
+        yaml-cpp::yaml-cpp
+        imguidocking::imguidocking
+        box2d::box2d
+        Jolt::Jolt
+        EnTT::EnTT
+        ${DEMOS_ARGS_LINK_LIBRARIES}
+    )
+    endif(LINUX)
+
+    if(APPLE)
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PRIVATE
+        glfw
+        ${OPENGL_LIBRARIES}
+        vulkan-headers::vulkan-headers
+        Vulkan::Vulkan
+        glm::glm
+        fmt::fmt
+        spdlog::spdlog
+        yaml-cpp::yaml-cpp
+        imguidocking::imguidocking
+        box2d::box2d
+        Jolt::Jolt
+        EnTT::EnTT
+        ${DEMOS_ARGS_LINK_LIBRARIES}
+    )
+    endif(APPLE)
+endfunction()
+
+
+
+function(build_subdir_demos)
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+    set(CMAKE_CXX_STANDARD 23)
+    
     add_executable(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
-
-    # This is used because if we do not have this users systems may give them a linked error with oldnames.lib
-    # Usage - used to suppress that lld-link error and use the defaulted linked .library
-    if(MSVC)
-        target_compile_options(${PROJECT_NAME} PUBLIC "/Z1" "/NOD")
-    endif(MSVC)
-    find_package(engine3d REQUIRED)
-
-    find_package(OpenGL REQUIRED)
-    find_package(glfw3 REQUIRED)
-
-    find_package(Vulkan REQUIRED)
-    find_package(VulkanHeaders REQUIRED)
-
-    if(LINUX)
-    find_package(VulkanLoader REQUIRED)
-    endif(LINUX)
-
-    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
-
-    find_package(glm REQUIRED)
-    find_package(fmt REQUIRED)
-    find_package(spdlog REQUIRED)
-    find_package(yaml-cpp REQUIRED)
-    find_package(imguidocking REQUIRED)
-    find_package(box2d REQUIRED)
-    find_package(joltphysics REQUIRED)
-    find_package(EnTT REQUIRED)
-
-    # Set Compiler definitions required for JoltPhysics
-    if(WIN32)
-        set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
-        set(global_definitions
-            $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
-            JPH_PROFILE_ENABLED
-            JPH_DEBUG_RENDERER
-            JPH_OBJECT_STREAM
-        )
-        target_include_directories(${PROJECT_NAME} PRIVATE ${global_definitions})
-    endif(WIN32)
-
     
-    if(LINUX)
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        Vulkan::Loader
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
-        engine3d::engine3d
+    target_include_directories(${PROJECT_NAME} PUBLIC ../${ENGINE_INCLUDE_DIR} ${JoltPhysics_SOURCE_DIR} ${EnTT_INCLUDE_DIR} ${GLM_INCLUDE_DIR})
+    target_include_directories(${PROJECT_NAME} PRIVATE ../${ENGINE_INCLUDE_DIR}/Core)
+
+    packages(
+        PACKAGES ${DEMOS_ARGS_PACKAGES}
+        LINK_LIBRARIES ${DEMOS_ARGS_LINK_LIBRARIES}
     )
-    else()
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        Vulkan::Vulkan
-        vulkan-headers::vulkan-headers
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
-        engine3d::engine3d
-    )
-    endif()
+    
 endfunction()
 
 
-function(build_library)
-  # Parse CMake function arguments
-  set(options)
-  set(one_value_args)
-  set(multi_value_args SOURCES INCLUDES PACKAGES LINK_LIBRARIES)
-  cmake_parse_arguments(DEMOS_ARGS
-    "${options}"
-    "${one_value_args}"
-    "${multi_value_args}"
-    ${ARGN})
 
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works (in creating the compile_commands.json file)
 
-    add_library(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
+function(build_subdirs)
+    # Parse CMake function arguments
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
 
-    # This is used because if we do not have this users systems may give them a linked error with oldnames.lib
-    # Usage - used to suppress that lld-link error and use the defaulted linked .library
-    if(MSVC)
-        target_compile_options(${PROJECT_NAME} PUBLIC "/Z1" "/NOD")
-    endif(MSVC)
-    
-    find_package(OpenGL REQUIRED)
-    find_package(glfw3 REQUIRED)
+    set(CMAKE_CXX_STANDARD 23)
 
-    find_package(Vulkan REQUIRED)
-    find_package(VulkanHeaders REQUIRED)
+    # So if we were to add  Editor this would do add_subdirectory(Editor)
+    # Usage: build_library(DIRECTORIES Editor TestApp)
+    foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
+        add_subdirectory(${SUBDIRS})
+    endforeach()
 
-    if(LINUX)
-    find_package(VulkanLoader REQUIRED)
-    endif(LINUX)
-
+    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR} ${JoltPhysics_SOURCE_DIR} ${EnTT_INCLUDE_DIR} ${GLM_INCLUDE_DIR})
     target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/Core)
-    target_include_directories(${PROJECT_NAME} PUBLIC ${JoltPhysics_SOURCE_DIR} ${GLM_INCLUDE_DIR} ${ENGINE_INCLUDE_DIR})
 
-    find_package(glm REQUIRED)
-    find_package(fmt REQUIRED)
-    find_package(spdlog REQUIRED)
-    find_package(yaml-cpp REQUIRED)
-    find_package(imguidocking REQUIRED)
-    find_package(box2d REQUIRED)
-    find_package(joltphysics REQUIRED)
-    find_package(EnTT REQUIRED)
-    
-    if(WIN32)
-        set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
-        set(global_definitions
-            $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
-            JPH_PROFILE_ENABLED
-            JPH_DEBUG_RENDERER
-            JPH_OBJECT_STREAM
-        )
-        target_include_directories(${PROJECT_NAME} PRIVATE ${global_definitions})
-    endif(WIN32)
 
-    if(LINUX)
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        Vulkan::Loader
-        vulkan-headers::vulkan-headers
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
+    packages(
+        PACKAGES ${DEMOS_ARGS_PACKAGES} 
+        LINK_LIBRARIES ${DEMOS_ARGS_LINK_LIBRARIES}
     )
-    else()
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        Vulkan::Vulkan
-        vulkan-headers::vulkan-headers
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
-    )
-    endif()
 
-    install(TARGETS ${PROJECT_NAME})
 endfunction()
-
