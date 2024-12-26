@@ -9,6 +9,14 @@ function(generate_compile_commands)
             ${CMAKE_SOURCE_DIR}/compile_commands.json
     )
 
+    # This will run the build doing -j which is building at full capacity.
+    # TODO - Should probably have this be disabled by default and have this be a flag set through conan.
+    # add_custom_target(my_parallel_build
+    #                       COMMAND ${CMAKE_COMMAND} --build -j
+    #                       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    #                       COMMENT "My parallel build with 5 cores")
+
+
     add_custom_command(
         OUTPUT ${CMAKE_CURRENT_LIST_DIR}/compile_commands.json
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -35,27 +43,7 @@ function(generate_compile_commands)
     )
 endfunction()
 
-# Assumes that our target_include_directories is engine3d.
-# This is only used for the engine3d project, specifically.
-# We also want to make sure that any engine3d related organization packages are ones we can add.
-
-# TODO: Probably want to modify this in the future.
-function(build_demos)
-    # Parse CMake function arguments
-    set(options)
-    set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
-    cmake_parse_arguments(DEMOS_ARGS
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
-
-    add_executable(${DEMOS_ARGS_PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
-
-endfunction()
-
+set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/engine3d)
 
 function(packages)
     set(options)
@@ -68,7 +56,7 @@ function(packages)
         ${ARGN}
     )
 
-    # #Set Compiler definitions
+    #Set Compiler definitions
     set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
     set(dev_definitions
         $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
@@ -76,97 +64,55 @@ function(packages)
         JPH_DEBUG_RENDERER
         JPH_OBJECT_STREAM
     )
-
     target_compile_definitions(${PROJECT_NAME} PRIVATE ${dev_definitions})
+    
+    # This is used because if we do not have this users systems may give them a linked error with oldnames.lib
+    # Usage - used to suppress that lld-link error and use the defaulted linked .library
+    if(MSVC)
+    target_compile_options(${PROJECT_NAME} PUBLIC "/Z1" "/NOD")
+    endif(MSVC)
 
-    foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        find_package(${PACKAGE} REQUIRED)
-    endforeach()
-
-    find_package(OpenGL REQUIRED)
+    find_package(glfw3 REQUIRED)
     find_package(Vulkan REQUIRED)
     find_package(VulkanHeaders REQUIRED)
-    if(LINUX)
-        find_package(VulkanLoader REQUIRED)
-    endif()
+    if(UNIX AND NOT APPLE)
+    endif(UNIX AND NOT APPLE)
 
     find_package(glm REQUIRED)
     find_package(fmt REQUIRED)
     find_package(spdlog REQUIRED)
     find_package(yaml-cpp REQUIRED)
-    find_package(imguidocking REQUIRED)
     find_package(box2d REQUIRED)
     find_package(joltphysics REQUIRED)
     find_package(EnTT REQUIRED)
+    find_package(imguidocking REQUIRED)
 
+    target_include_directories(${PROJECT_NAME} PUBLIC ${JoltPhysics_SOURCE_DIR}/..)
 
-    if(WIN32)
     target_link_libraries(
         ${PROJECT_NAME}
-        PRIVATE
+        PUBLIC
         glfw
         ${OPENGL_LIBRARIES}
         Vulkan::Vulkan
         vulkan-headers::vulkan-headers
+        imguidocking::imguidocking
         glm::glm
         fmt::fmt
         spdlog::spdlog
         yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
         box2d::box2d
         Jolt::Jolt
         EnTT::EnTT
-        ${DEMOS_ARGS_LINK_LIBRARIES}
     )
-    endif(WIN32)
-
-    if(LINUX)
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        vulkan-headers::vulkan-headers
-        Vulkan::Loader
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
-        ${DEMOS_ARGS_LINK_LIBRARIES}
-    )
-    endif(LINUX)
-
-    if(APPLE)
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PRIVATE
-        glfw
-        ${OPENGL_LIBRARIES}
-        vulkan-headers::vulkan-headers
-        Vulkan::Vulkan
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        imguidocking::imguidocking
-        box2d::box2d
-        Jolt::Jolt
-        EnTT::EnTT
-        ${DEMOS_ARGS_LINK_LIBRARIES}
-    )
-    endif(APPLE)
 endfunction()
 
 
 
-function(build_subdir_demos)
+function(build_demos)
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
@@ -174,27 +120,28 @@ function(build_subdir_demos)
         ${ARGN}
     )
     set(CMAKE_CXX_STANDARD 23)
-    
+
     add_executable(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
     
-    target_include_directories(${PROJECT_NAME} PUBLIC ../${ENGINE_INCLUDE_DIR} ${JoltPhysics_SOURCE_DIR} ${EnTT_INCLUDE_DIR} ${GLM_INCLUDE_DIR})
-    target_include_directories(${PROJECT_NAME} PRIVATE ../${ENGINE_INCLUDE_DIR}/Core)
+    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
+    # target_include_directories(${PROJECT_NAME} PRIVATE ../${ENGINE_INCLUDE_DIR}/engine3d/core ${DEMOS_ARGS_INCLUDES})
 
+    target_link_libraries(${PROJECT_NAME} PUBLIC engine3d)
     packages(
         PACKAGES ${DEMOS_ARGS_PACKAGES}
-        LINK_LIBRARIES ${DEMOS_ARGS_LINK_LIBRARIES}
+        LINK_LIBRARIES ${DEMOS_ARGS_LINK_PACKAGES}
     )
     
 endfunction()
 
 
-
-
-function(build_subdirs)
+# Takes in add_subdirectory instead of sources
+function(build_library)
+    message("[ENGINE3D] Building engine3d core library")
     # Parse CMake function arguments
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES NO_PACKAGES)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
@@ -207,16 +154,46 @@ function(build_subdirs)
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
     foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
+        message("[ENGINE3D] Added \"${SUBDIRS}\"")
         add_subdirectory(${SUBDIRS})
     endforeach()
 
-    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR} ${JoltPhysics_SOURCE_DIR} ${EnTT_INCLUDE_DIR} ${GLM_INCLUDE_DIR})
-    target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/Core)
+    generate_compile_commands()
 
+    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/core)
 
     packages(
         PACKAGES ${DEMOS_ARGS_PACKAGES} 
-        LINK_LIBRARIES ${DEMOS_ARGS_LINK_LIBRARIES}
+        LINK_LIBRARIES ${DEMOS_ARGS_LINK_PACKAGES}
     )
 
+endfunction()
+
+function(build_application)
+    # Parse CMake function arguments
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES NO_PACKAGES)
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+
+    set(CMAKE_CXX_STANDARD 23)
+
+    # Linking specified packages from the user
+    add_executable(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
+
+    generate_compile_commands()
+
+    foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
+        message("[ENGINE3D] Added packages ${PACKAGE}")
+        find_package(${PACKAGE} REQUIRED)
+    endforeach()
+
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_LINK_PACKAGES})
+    
 endfunction()
