@@ -125,6 +125,7 @@ function(engine3d_build_unit_test)
         ${ARGN}
     )
 
+    # This goes through all of our sources and checks if they are valid sources 
     foreach(EACH_UNIT_TEST_SOURCE ${DEMOS_ARGS_TEST_SOURCES})
         message("-- [ENGINE3D] Testing '${EACH_UNIT_TEST_SOURCE}'")
     endforeach()
