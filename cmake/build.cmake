@@ -219,10 +219,10 @@ function(build_library)
     target_compile_options(
         ${PROJECT_NAME}
         PUBLIC
-        -g -Werror -Wall -Wextra -Wshadow
+        -g -Werror -Wall -Wextra -Wno-missing-designated-field-initializers -Wno-missing-field-initializers -Wshadow
     )
 
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wno-missing-designated-field-initializers)
+    # target_compile_options(${PROJECT_NAME} PRIVATE)
 
     generate_compile_commands()
 
