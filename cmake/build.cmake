@@ -84,7 +84,6 @@ function(packages)
     find_package(yaml-cpp REQUIRED)
     find_package(box2d REQUIRED)
     find_package(joltphysics REQUIRED)
-    find_package(EnTT REQUIRED)
     find_package(imguidocking REQUIRED)
 
     foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
@@ -108,7 +107,6 @@ function(packages)
         yaml-cpp::yaml-cpp
         box2d::box2d
         Jolt::Jolt
-        EnTT::EnTT
         ${DEMOS_ARGS_LINK_PACKAGES}
     )
 endfunction()
@@ -117,7 +115,7 @@ endfunction()
 function(engine3d_build_unit_test)
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES TEST_SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
+    set(multi_value_args SOURCES TEST_SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
@@ -136,7 +134,8 @@ function(engine3d_build_unit_test)
         engine3d_unit_test
         ${DEMOS_ARGS_TEST_SOURCES}
     )
-    target_link_libraries(engine3d_unit_test PRIVATE boost-ext-ut::ut)
+
+    target_link_libraries(engine3d_unit_test PRIVATE boost-ext-ut::ut ${DEMOS_ARGS_LINK_PACKAGES})
 
     target_compile_options(engine3d_unit_test PRIVATE
         --coverage
@@ -160,6 +159,9 @@ function(engine3d_build_unit_test)
 
     target_include_directories(engine3d_unit_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_LIST_DIR}/engine3d/core)
     
+    # Specifying to cmake to run engine3d_unit_test before engine3d's Editor runs
+    # [engine3d_unit_test required -> [then do] -> Editor]
+    add_dependencies(engine3d_unit_test Editor)
     add_custom_target(run_tests ALL DEPENDS engine3d_unit_test COMMAND engine3d_unit_test)
 
 endfunction()
@@ -195,20 +197,26 @@ function(build_library)
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES NO_PACKAGES)
+    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES ENABLE_TESTS PACKAGES LINK_PACKAGES NO_PACKAGES)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
         "${multi_value_args}"
         ${ARGN}
     )
+    option(${DEMOS_ARGS_ENABLE_TESTS} "[ENGINE3D] Enabling unit testing" OFF)
 
     set(CMAKE_CXX_STANDARD 23)
 
     # Setting up unit tests part of the build process
-    engine3d_build_unit_test(
-        TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
-    )
+    # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
+    if(${DEMOS_ARGS_ENABLE_TESTS})
+        message("-- [ENGINE3D] Enabling Unit Tests")
+        engine3d_build_unit_test(
+            TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
+            LINK_PACKAGES engine3d
+        )
+    endif()
     
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
