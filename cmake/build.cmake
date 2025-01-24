@@ -48,7 +48,7 @@ set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/engine3d)
 function(packages)
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_LIBRARIES)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
@@ -84,8 +84,8 @@ function(packages)
     find_package(yaml-cpp REQUIRED)
     find_package(box2d REQUIRED)
     find_package(joltphysics REQUIRED)
+    find_package(EnTT REQUIRED)
     find_package(imguidocking REQUIRED)
-
     foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
         message(${Blue} "-- [ENGINE3D] Added Package ${PACKAGE_NAME}")
         find_package(${PACKAGE_NAME} REQUIRED)
@@ -107,64 +107,12 @@ function(packages)
         yaml-cpp::yaml-cpp
         box2d::box2d
         Jolt::Jolt
-        ${DEMOS_ARGS_LINK_PACKAGES}
+        EnTT::EnTT
+        ${DEMOS_ARGS_LINK_LIBRARIES}
     )
 endfunction()
 
 
-function(engine3d_build_unit_test)
-    set(options)
-    set(one_value_args)
-    set(multi_value_args SOURCES TEST_SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
-    cmake_parse_arguments(DEMOS_ARGS
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
-
-    # This goes through all of our sources and checks if they are valid sources 
-    foreach(EACH_UNIT_TEST_SOURCE ${DEMOS_ARGS_TEST_SOURCES})
-        message("-- [ENGINE3D] Testing '${EACH_UNIT_TEST_SOURCE}'")
-    endforeach()
-
-    find_package(ut REQUIRED CONFIG)
-
-    add_executable(
-        engine3d_unit_test
-        ${DEMOS_ARGS_TEST_SOURCES}
-    )
-
-    target_link_libraries(engine3d_unit_test PRIVATE boost-ext-ut::ut ${DEMOS_ARGS_LINK_PACKAGES})
-
-    target_compile_options(engine3d_unit_test PRIVATE
-        --coverage
-        -fprofile-arcs
-        -ftest-coverage
-        -Werror
-        -Wall
-        -Wextra
-        -Wshadow
-        -Wnon-virtual-dtor
-        -Wno-gnu-statement-expression
-        -pedantic
-        -g
-    )
-
-    target_link_options(engine3d_unit_test PRIVATE
-        --coverage
-        -fprofile-arcs
-        -ftest-coverage
-    )
-
-    target_include_directories(engine3d_unit_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_LIST_DIR}/engine3d/core)
-    
-    # Specifying to cmake to run engine3d_unit_test before engine3d's Editor runs
-    # [engine3d_unit_test required -> [then do] -> Editor]
-    add_dependencies(engine3d_unit_test Editor)
-    add_custom_target(run_tests ALL DEPENDS engine3d_unit_test COMMAND engine3d_unit_test)
-
-endfunction()
 
 function(build_demos)
     set(options)
@@ -181,57 +129,39 @@ function(build_demos)
     add_executable(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
     
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
+    # target_include_directories(${PROJECT_NAME} PRIVATE ../${ENGINE_INCLUDE_DIR}/engine3d/core ${DEMOS_ARGS_INCLUDES})
 
-    foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        message("-- [ENGINE3D] Added Packages ${PACKAGE}")
-        find_package(${PACKAGE} REQUIRED)
-    endforeach()
-
-    target_link_libraries(${PROJECT_NAME} PUBLIC engine3d ${DEMOS_ARGS_LINK_PACKAGES})
+    target_link_libraries(${PROJECT_NAME} PUBLIC engine3d)
+    packages(
+        PACKAGES ${DEMOS_ARGS_PACKAGES}
+        LINK_LIBRARIES ${DEMOS_ARGS_LINK_PACKAGES}
+    )
     
 endfunction()
 
 
+# Takes in add_subdirectory instead of sources
 function(build_library)
-    message("-- [ENGINE3D] Building engine3d core library")
-    # Parse CMake function parameters
+    message("[ENGINE3D] Building engine3d core library")
+    # Parse CMake function arguments
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES ENABLE_TESTS PACKAGES LINK_PACKAGES NO_PACKAGES)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES NO_PACKAGES)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
         "${multi_value_args}"
         ${ARGN}
     )
-    option(${DEMOS_ARGS_ENABLE_TESTS} "[ENGINE3D] Enabling unit testing" OFF)
 
     set(CMAKE_CXX_STANDARD 23)
 
-    # Setting up unit tests part of the build process
-    # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
-    if(${DEMOS_ARGS_ENABLE_TESTS})
-        message("-- [ENGINE3D] Enabling Unit Tests")
-        engine3d_build_unit_test(
-            TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
-            LINK_PACKAGES engine3d
-        )
-    endif()
-    
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
     foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
-        message("-- [ENGINE3D] Added \"${SUBDIRS}\"")
+        message("[ENGINE3D] Added \"${SUBDIRS}\"")
         add_subdirectory(${SUBDIRS})
     endforeach()
-
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        -g -Werror -Wall -Wextra -Wno-missing-designated-field-initializers -Wno-missing-field-initializers -Wshadow
-    )
-
-    # target_compile_options(${PROJECT_NAME} PRIVATE)
 
     generate_compile_commands()
 
@@ -240,7 +170,7 @@ function(build_library)
 
     packages(
         PACKAGES ${DEMOS_ARGS_PACKAGES} 
-        LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
+        LINK_LIBRARIES ${DEMOS_ARGS_LINK_PACKAGES}
     )
 
 endfunction()
@@ -265,7 +195,7 @@ function(build_application)
     generate_compile_commands()
 
     foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        message("-- [ENGINE3D] Added Packages ${PACKAGE}")
+        message("[ENGINE3D] Added packages ${PACKAGE}")
         find_package(${PACKAGE} REQUIRED)
     endforeach()
 
