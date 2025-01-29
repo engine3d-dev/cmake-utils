@@ -111,6 +111,28 @@ function(packages)
     )
 endfunction()
 
+function(empty_packages)
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+
+    foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
+        message(${Blue} "-- [${PROJECT_NAME}] Added Package ${PACKAGE_NAME}")
+        find_package(${PACKAGE_NAME} REQUIRED)
+    endforeach()
+
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PUBLIC
+        ${DEMOS_ARGS_LINK_PACKAGES}
+    )
+endfunction()
 
 function(engine3d_build_unit_test)
     set(options)
@@ -243,6 +265,47 @@ function(build_library)
         LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
     )
 
+endfunction()
+
+function(new_build_library)
+    # Parse CMake function parameters
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES PUBLIC_INCLUDES DIRECTORIES PRIVATE_DIRECTORIES LINK_PACKAGES NO_PACKAGES)
+    
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+
+    set(CMAKE_CXX_STANDARD 23)
+
+    # So if we were to add  Editor this would do add_subdirectory(Editor)
+    # Usage: build_library(DIRECTORIES Editor TestApp)
+    foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
+        message("-- [${PROJECT_NAME}] Added \"${SUBDIRS}\"")
+        add_subdirectory(${SUBDIRS})
+    endforeach()
+
+    # target_compile_options(
+    #     ${PROJECT_NAME}
+    #     PUBLIC
+    #     -g -Werror -Wall -Wextra -Wno-missing-designated-field-initializers -Wno-missing-field-initializers -Wshadow
+    # )
+
+    # target_compile_options(${PROJECT_NAME} PRIVATE)
+
+    # generate_compile_commands()
+
+    target_include_directories(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_PUBLIC_INCLUDES})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${DEMOS_ARGS_PRIVATE_INCLUDES})
+
+    empty_packages(
+        PACKAGES ${DEMOS_ARGS_PACKAGES} 
+        LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
+    )
 endfunction()
 
 function(build_application)
