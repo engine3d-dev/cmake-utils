@@ -43,7 +43,7 @@ function(generate_compile_commands)
     )
 endfunction()
 
-set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/engine3d)
+set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/atlas)
 
 function(packages)
     set(options)
@@ -55,16 +55,6 @@ function(packages)
         "${multi_value_args}"
         ${ARGN}
     )
-
-    #Set Compiler definitions
-    set(is_msvc_cl $<CXX_COMPILER_ID:MSVC>)
-    set(dev_definitions
-        $<${is_msvc_cl}:JPH_FLOATING_POINT_EXCEPTIONS_ENABLED>
-        JPH_PROFILE_ENABLED
-        JPH_DEBUG_RENDERER
-        JPH_OBJECT_STREAM
-    )
-    target_compile_definitions(${PROJECT_NAME} PRIVATE ${dev_definitions})
     
     # This is used because if we do not have this users systems may give them a linked error with oldnames.lib
     # Usage - used to suppress that lld-link error and use the defaulted linked .library
@@ -81,60 +71,54 @@ function(packages)
     find_package(glm REQUIRED)
     find_package(fmt REQUIRED)
     find_package(spdlog REQUIRED)
-    find_package(yaml-cpp REQUIRED)
     find_package(box2d REQUIRED)
-    find_package(joltphysics REQUIRED)
     find_package(imguidocking REQUIRED)
 
+    find_package(Jolt REQUIRED)
+    find_package(yaml-cpp REQUIRED)
+    find_package(stb REQUIRED)
+    find_package(flecs REQUIRED)
+    find_package(nfd REQUIRED)
+
     foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
-        message(${Blue} "-- [ENGINE3D] Added Package ${PACKAGE_NAME}")
+        message(${Blue} "-- [ENGINE] Added Package ${PACKAGE_NAME}")
         find_package(${PACKAGE_NAME} REQUIRED)
     endforeach()
 
-    target_include_directories(${PROJECT_NAME} PUBLIC ${JoltPhysics_SOURCE_DIR}/..)
+    set(VULKAN_LINK_LIBS "")
+
+    if(WIN32)
+        list(${VULKAN_LINK_LIBS} APPEND Vulkan::Vulkan)
+    endif(WIN32)
+
+    if(UNIX AND NOT APPLE)
+        list(${VULKAN_LINK_LIBS} APPEND Vulkan::Loader)
+    endif(UNIX AND NOT APPLE)
 
     target_link_libraries(
         ${PROJECT_NAME}
         PUBLIC
         glfw
         ${OPENGL_LIBRARIES}
-        Vulkan::Vulkan
+        # Vulkan::Vulkan
+        ${VULKAN_LINK_LIBS}
         vulkan-headers::vulkan-headers
         imguidocking::imguidocking
         glm::glm
         fmt::fmt
         spdlog::spdlog
-        yaml-cpp::yaml-cpp
-        box2d::box2d
+
         Jolt::Jolt
+        yaml-cpp
+        stb::stb
+
+        flecs::flecs_static
+        nfd::nfd
         ${DEMOS_ARGS_LINK_PACKAGES}
     )
 endfunction()
 
-function(empty_packages)
-    set(options)
-    set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
-    cmake_parse_arguments(DEMOS_ARGS
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
-
-    foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
-        message(${Blue} "-- [${PROJECT_NAME}] Added Package ${PACKAGE_NAME}")
-        find_package(${PACKAGE_NAME} REQUIRED)
-    endforeach()
-
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PUBLIC
-        ${DEMOS_ARGS_LINK_PACKAGES}
-    )
-endfunction()
-
-function(engine3d_build_unit_test)
+function(build_unit_test)
     set(options)
     set(one_value_args)
     set(multi_value_args SOURCES TEST_SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
@@ -147,19 +131,19 @@ function(engine3d_build_unit_test)
 
     # This goes through all of our sources and checks if they are valid sources 
     foreach(EACH_UNIT_TEST_SOURCE ${DEMOS_ARGS_TEST_SOURCES})
-        message("-- [ENGINE3D] Testing '${EACH_UNIT_TEST_SOURCE}'")
+        message("-- [ENGINE] Testing '${EACH_UNIT_TEST_SOURCE}'")
     endforeach()
 
     find_package(ut REQUIRED CONFIG)
 
     add_executable(
-        engine3d_unit_test
+        unit_test
         ${DEMOS_ARGS_TEST_SOURCES}
     )
 
-    target_link_libraries(engine3d_unit_test PRIVATE boost-ext-ut::ut ${DEMOS_ARGS_LINK_PACKAGES})
+    target_link_libraries(unit_test PRIVATE boost-ext-ut::ut ${DEMOS_ARGS_LINK_PACKAGES})
 
-    target_compile_options(engine3d_unit_test PRIVATE
+    target_compile_options(unit_test PRIVATE
         --coverage
         -fprofile-arcs
         -ftest-coverage
@@ -173,22 +157,23 @@ function(engine3d_build_unit_test)
         -g
     )
 
-    target_link_options(engine3d_unit_test PRIVATE
+    target_link_options(unit_test PRIVATE
         --coverage
         -fprofile-arcs
         -ftest-coverage
     )
 
-    target_include_directories(engine3d_unit_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_LIST_DIR}/engine3d/core)
+    target_include_directories(unit_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_LIST_DIR}/engine3d/core)
     
-    # Specifying to cmake to run engine3d_unit_test before engine3d's Editor runs
-    # [engine3d_unit_test required -> [then do] -> Editor]
-    add_dependencies(engine3d_unit_test Editor)
-    add_custom_target(run_tests ALL DEPENDS engine3d_unit_test COMMAND engine3d_unit_test)
+    # Specifying to cmake to run unit_test before engine3d's Editor runs
+    # [unit_test required -> [then do] -> Editor]
+    add_dependencies(unit_test editor)
+    add_custom_target(run_tests ALL DEPENDS unit_test COMMAND unit_test)
 
 endfunction()
 
-function(build_demos)
+# Should be used by client application
+function(build_application)
     set(options)
     set(one_value_args)
     set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
@@ -205,17 +190,18 @@ function(build_demos)
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
 
     foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        message("-- [ENGINE3D] Added Packages ${PACKAGE}")
+        message("-- [${PROJECT_NAME}] Added Packages ${PACKAGE}")
         find_package(${PACKAGE} REQUIRED)
     endforeach()
 
-    target_link_libraries(${PROJECT_NAME} PUBLIC engine3d ${DEMOS_ARGS_LINK_PACKAGES})
+    target_link_libraries(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_LINK_PACKAGES})
     
 endfunction()
 
 
-function(build_library)
-    message("-- [ENGINE3D] Building engine3d core library")
+# Used by the core engine itself. Users SHOULD NOT be using this function
+function(build_core_library)
+    message("-- [ENGINE] Building core engine library")
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
@@ -226,32 +212,41 @@ function(build_library)
         "${multi_value_args}"
         ${ARGN}
     )
-    option(${DEMOS_ARGS_ENABLE_TESTS} "[ENGINE3D] Enabling unit testing" OFF)
+    option(${DEMOS_ARGS_ENABLE_TESTS} "[ENGINE] Enabling unit testing" OFF)
 
     set(CMAKE_CXX_STANDARD 23)
 
     # Setting up unit tests part of the build process
     # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
     if(${DEMOS_ARGS_ENABLE_TESTS})
-        message("-- [ENGINE3D] Enabling Unit Tests")
-        engine3d_build_unit_test(
+        message("-- [ENGINE] Enabling Unit Tests")
+        build_unit_test(
             TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
-            LINK_PACKAGES engine3d
+            LINK_PACKAGES atlas
         )
     endif()
     
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
     foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
-        message("-- [ENGINE3D] Added \"${SUBDIRS}\"")
+        message("-- [ENGINE] Added \"${SUBDIRS}\"")
         add_subdirectory(${SUBDIRS})
     endforeach()
-
+    
+    if(UNIX AND NOT APPLE)
+    message("ON LINUX SETTING COMPILE FLAGS")
+    target_compile_options(
+        ${PROJECT_NAME}
+        PUBLIC
+        -g -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+    )
+    else()
     target_compile_options(
         ${PROJECT_NAME}
         PUBLIC
         -g -Werror -Wall -Wextra -Wno-missing-designated-field-initializers -Wno-missing-field-initializers -Wshadow
     )
+    endif(UNIX AND NOT APPLE)
 
     # target_compile_options(${PROJECT_NAME} PRIVATE)
 
@@ -267,11 +262,13 @@ function(build_library)
 
 endfunction()
 
-function(new_build_library)
+
+
+function(build_library)
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES PUBLIC_INCLUDES DIRECTORIES PRIVATE_DIRECTORIES LINK_PACKAGES NO_PACKAGES)
+    set(multi_value_args SOURCES PUBLIC_INCLUDES DIRECTORIES PRIVATE_DIRECTORIES PACKAGES LINK_PACKAGES NO_PACKAGES)
     
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
@@ -289,49 +286,18 @@ function(new_build_library)
         add_subdirectory(${SUBDIRS})
     endforeach()
 
-    # target_compile_options(
-    #     ${PROJECT_NAME}
-    #     PUBLIC
-    #     -g -Werror -Wall -Wextra -Wno-missing-designated-field-initializers -Wno-missing-field-initializers -Wshadow
-    # )
-
-    # target_compile_options(${PROJECT_NAME} PRIVATE)
-
-    # generate_compile_commands()
 
     target_include_directories(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_PUBLIC_INCLUDES})
     target_include_directories(${PROJECT_NAME} PRIVATE ${DEMOS_ARGS_PRIVATE_INCLUDES})
 
-    empty_packages(
-        PACKAGES ${DEMOS_ARGS_PACKAGES} 
-        LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
-    )
-endfunction()
-
-function(build_application)
-    # Parse CMake function arguments
-    set(options)
-    set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES NO_PACKAGES)
-    cmake_parse_arguments(DEMOS_ARGS
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
-
-    set(CMAKE_CXX_STANDARD 23)
-
-    # Linking specified packages from the user
-    add_executable(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
-
-    generate_compile_commands()
-
-    foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        message("-- [ENGINE3D] Added Packages ${PACKAGE}")
-        find_package(${PACKAGE} REQUIRED)
+    foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES} )
+        message(${Blue} "-- [${PROJECT_NAME}] Added Package ${PACKAGE_NAME}")
+        find_package(${PACKAGE_NAME} REQUIRED)
     endforeach()
 
-    target_link_libraries(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_LINK_PACKAGES})
-    
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PUBLIC
+        ${DEMOS_ARGS_LINK_PACKAGES}
+    )
 endfunction()
