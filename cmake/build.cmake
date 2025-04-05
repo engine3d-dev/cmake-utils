@@ -167,7 +167,7 @@ function(build_unit_test)
     
     # Specifying to cmake to run unit_test before engine3d's Editor runs
     # [unit_test required -> [then do] -> Editor]
-    add_dependencies(unit_test editor)
+    # add_dependencies(unit_test editor)
     add_custom_target(run_tests ALL DEPENDS unit_test COMMAND unit_test)
 
 endfunction()
@@ -188,6 +188,26 @@ function(build_application)
     add_executable(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
     
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
+
+    # target_compile_options(${PROJECT_NAME} PRIVATE
+    #     -g
+    #     --coverage
+    #     -fprofile-arcs
+    #     -ftest-coverage
+    #     -Werror
+    #     -Wall
+    #     -Wextra
+    #     -Wshadow
+    #     -Wnon-virtual-dtor
+    #     -Wno-gnu-statement-expression
+    #     -pedantic
+    # )
+
+    # target_link_options(${PROJECT_NAME} PRIVATE
+    #     --coverage
+    #     -fprofile-arcs
+    #     -ftest-coverage
+    # )
 
     foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
         message("-- [${PROJECT_NAME}] Added Packages ${PACKAGE}")
@@ -244,7 +264,7 @@ function(build_core_library)
     target_compile_options(
         ${PROJECT_NAME}
         PUBLIC
-        -g -Werror -Wall -Wextra -Wno-missing-designated-field-initializers -Wno-missing-field-initializers -Wshadow
+        -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
     )
     endif(UNIX AND NOT APPLE)
 
@@ -268,7 +288,7 @@ function(build_library)
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES PUBLIC_INCLUDES DIRECTORIES PRIVATE_DIRECTORIES PACKAGES LINK_PACKAGES NO_PACKAGES)
+    set(multi_value_args SOURCES PUBLIC_INCLUDES DIRECTORIES ENABLE_TESTS UNIT_TEST_SOURCES PACKAGES LINK_PACKAGES NO_PACKAGES)
     
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
@@ -278,6 +298,16 @@ function(build_library)
     )
 
     set(CMAKE_CXX_STANDARD 23)
+
+    # Setting up unit tests part of the build process
+    # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
+    if(${DEMOS_ARGS_ENABLE_TESTS})
+        message("-- [ENGINE] Enabling Unit Tests")
+        build_unit_test(
+            TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
+            LINK_PACKAGES ${LINK_PACKAGES}
+        )
+    endif()
 
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
