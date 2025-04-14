@@ -43,6 +43,22 @@ function(generate_compile_commands)
     )
 endfunction()
 
+function(add_clang_tidy)
+# This is working clang-tidy configuration
+find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
+
+if(CLANG_TIDY_EXECUTABLE)
+    message(STATUS "${CLANG_TIDY_EXECUTABLE} found!")
+    set(CMAKE_CXX_CLANG_TIDY ${LIBHAL_CLANG_TIDY_PROGRAM})
+    set(CLANG_TIDY_CONFIG_FILE "clang-tidy.conf")
+    set(CLANG_TIDY_SETUP "${CLANG_TIDY_EXECUTABLE}" "--config-file=${CLANG_TIDY_CONFIG_FILE}")
+    set_target_properties(${TARGET} PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_SETUP}")
+endif()
+
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES Off)
+endfunction()
+
+
 set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/atlas)
 
 function(packages)
@@ -235,6 +251,8 @@ function(build_core_library)
     option(${DEMOS_ARGS_ENABLE_TESTS} "[ENGINE] Enabling unit testing" OFF)
 
     set(CMAKE_CXX_STANDARD 23)
+
+    add_clang_tidy()
 
     # Setting up unit tests part of the build process
     # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})

@@ -9,10 +9,10 @@ required_conan_version = ">=2.0.6"
 
 class engine3d_cmake_util_conan(ConanFile):
     name = "engine3d-cmake-utils"
-    version = "3.0"
+    version = "4.0"
     license = "Apache-2.0"
     description = ("A collection of CMake for engine3d")
-    topics = ("cmake", "engine3d")
+    topics = ("cmake")
     exports_sources = ("cmake/*", "LICENSE")
     no_copy_source = True
     options = {
