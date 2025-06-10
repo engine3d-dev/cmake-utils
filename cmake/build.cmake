@@ -254,7 +254,7 @@ function(build_core_library)
     endforeach()
 
     # Setting compiler arguments based on specific build_type specifications
-    if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows" or "${CMAKE_SYSTEM_NAME}" STREQUAL "Linux") # Sets compiler arguments with -msse4.1 on Windows and Linux because required when in debug mode
+    if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux") # Sets compiler arguments with -msse4.1 on Windows and Linux because required when in debug mode
         if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
             message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
             target_compile_options(
