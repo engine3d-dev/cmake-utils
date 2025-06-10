@@ -147,7 +147,7 @@ function(build_unit_test)
 
     # This goes through all of our sources and checks if they are valid sources 
     foreach(EACH_UNIT_TEST_SOURCE ${DEMOS_ARGS_TEST_SOURCES})
-        message("-- ${Blue} [${PROJECT_NAME}] Testing '${EACH_UNIT_TEST_SOURCE}'")
+        message("${Blue}-- [${PROJECT_NAME}] Testing '${EACH_UNIT_TEST_SOURCE}'")
     endforeach()
 
     find_package(ut REQUIRED CONFIG)
@@ -206,7 +206,7 @@ function(build_application)
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
 
     foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        message("-- ${Blue} [${PROJECT_NAME}] Added Packages ${PACKAGE}")
+        message("${Blue}-- [${PROJECT_NAME}] Added Packages ${PACKAGE}")
         find_package(${PACKAGE} REQUIRED)
     endforeach()
 
