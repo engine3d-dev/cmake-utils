@@ -221,7 +221,7 @@ function(build_core_library)
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES ENABLE_TESTS PACKAGES LINK_PACKAGES NO_PACKAGES BUILD_TYPE_ARG)
+    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES ENABLE_TESTS PACKAGES LINK_PACKAGES NO_PACKAGES)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
@@ -243,10 +243,6 @@ function(build_core_library)
             LINK_PACKAGES atlas
         )
     endif()
-
-    if(${DEMOS_ARGS_BUILD_TYPE})
-        message("-- [ENGINE] Build Type Enabled = ${DEMOS_ARGS_BUILD_TYPE}")
-    endif()
     
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
@@ -254,12 +250,30 @@ function(build_core_library)
         message("-- [ENGINE] Added \"${SUBDIRS}\"")
         add_subdirectory(${SUBDIRS})
     endforeach()
-    
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
-    )
+
+    # Setting compiler arguments based on specific build_type specifications
+    if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+        message("-- [ENGINE] Setting compile arguments for Release Build")
+        target_compile_options(
+            ${PROJECT_NAME}
+            PUBLIC
+            -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+        )
+    elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+        message("-- [ENGINE] Setting compile arguments for Debug Build")
+        target_compile_options(
+            ${PROJECT_NAME}
+            PUBLIC
+            -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+        )
+    else()
+        message("-- [ENGINE] Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
+        target_compile_options(
+            ${PROJECT_NAME}
+            PUBLIC
+            -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+        )
+    endif()
 
     generate_compile_commands()
 
