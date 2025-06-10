@@ -241,7 +241,7 @@ function(build_core_library)
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES ENABLE_TESTS PACKAGES LINK_PACKAGES NO_PACKAGES)
+    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES ENABLE_TESTS PACKAGES LINK_PACKAGES NO_PACKAGES BUILD_TYPE_ARG)
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
@@ -263,6 +263,10 @@ function(build_core_library)
             LINK_PACKAGES atlas
         )
     endif()
+
+    if(${DEMOS_ARGS_BUILD_TYPE})
+        message("-- [ENGINE] Build Type Enabled = ${DEMOS_ARGS_BUILD_TYPE}")
+    endif()
     
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
@@ -272,19 +276,22 @@ function(build_core_library)
     endforeach()
     
     if(UNIX AND NOT APPLE)
-    message("ON LINUX SETTING COMPILE FLAGS")
+    message("-- ON UNIX System SETTING COMPILE FLAGS")
+    set(UNIX_COMPILER_FLAGS "-g -Wall -Wextra -Wno-missing-field-initializers -Wshadow")
     target_compile_options(
         ${PROJECT_NAME}
         PUBLIC
-        -g -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+        ${UNIX_COMPILER_FLAGS}
     )
-    else()
+    elseif(WIN32)
+    message("-- Using WIN32 System Compiler Settings")
     target_compile_options(
         ${PROJECT_NAME}
         PUBLIC
-        -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+        -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
     )
-    endif(UNIX AND NOT APPLE)
+
+    endif()
 
     # target_compile_options(${PROJECT_NAME} PRIVATE)
 
