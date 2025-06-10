@@ -205,26 +205,6 @@ function(build_application)
     
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
 
-    # target_compile_options(${PROJECT_NAME} PRIVATE
-    #     -g
-    #     --coverage
-    #     -fprofile-arcs
-    #     -ftest-coverage
-    #     -Werror
-    #     -Wall
-    #     -Wextra
-    #     -Wshadow
-    #     -Wnon-virtual-dtor
-    #     -Wno-gnu-statement-expression
-    #     -pedantic
-    # )
-
-    # target_link_options(${PROJECT_NAME} PRIVATE
-    #     --coverage
-    #     -fprofile-arcs
-    #     -ftest-coverage
-    # )
-
     foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
         message("-- [${PROJECT_NAME}] Added Packages ${PACKAGE}")
         find_package(${PACKAGE} REQUIRED)
@@ -275,25 +255,11 @@ function(build_core_library)
         add_subdirectory(${SUBDIRS})
     endforeach()
     
-    if(UNIX AND NOT APPLE)
-    message("-- ON UNIX System SETTING COMPILE FLAGS")
-    set(UNIX_COMPILER_FLAGS "-g -Wall -Wextra -Wno-missing-field-initializers -Wshadow")
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        ${UNIX_COMPILER_FLAGS}
-    )
-    elseif(WIN32)
-    message("-- Using WIN32 System Compiler Settings")
     target_compile_options(
         ${PROJECT_NAME}
         PUBLIC
         -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
     )
-
-    endif()
-
-    # target_compile_options(${PROJECT_NAME} PRIVATE)
 
     generate_compile_commands()
 
