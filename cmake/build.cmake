@@ -254,27 +254,52 @@ function(build_core_library)
     endforeach()
 
     # Setting compiler arguments based on specific build_type specifications
-    if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-        message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
-        target_compile_options(
-            ${PROJECT_NAME}
-            PUBLIC
-            -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
-        )
-    elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-        message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
-        target_compile_options(
-            ${PROJECT_NAME}
-            PUBLIC
-            -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
-        )
-    else()
-        message(STATUS "${ColoredOutput} Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
-        target_compile_options(
-            ${PROJECT_NAME}
-            PUBLIC
-            -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
-        )
+    if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows" or "${CMAKE_SYSTEM_NAME}" STREQUAL "Linux") # Sets compiler arguments with -msse4.1 on Windows and Linux because required when in debug mode
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+            )
+        else()
+            message(STATUS "${ColoredOutput} Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        endif()
+    else() # Set compiler arguments on Apple (darwin)
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        else()
+            message(STATUS "${ColoredOutput} Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        endif()
     endif()
 
     generate_compile_commands()
