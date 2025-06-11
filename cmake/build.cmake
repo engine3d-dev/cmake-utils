@@ -255,12 +255,13 @@ function(build_core_library)
 
     # Setting compiler arguments based on specific build_type specifications
     if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux") # Sets compiler arguments with -msse4.1 on Windows and Linux because required when in debug mode
+        message(STATUS "${ColoredOutput} Current Build System --- ${CMAKE_SYSTEM_NAME}")
         if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
             message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
             target_compile_options(
                 ${PROJECT_NAME}
                 PUBLIC
-                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
             )
         elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
             message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
@@ -274,10 +275,11 @@ function(build_core_library)
             target_compile_options(
                 ${PROJECT_NAME}
                 PUBLIC
-                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
             )
         endif()
     else() # Set compiler arguments on Apple (darwin)
+        message(STATUS "${ColoredOutput} Current Build System --- ${CMAKE_SYSTEM_NAME}")
         if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
             message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
             target_compile_options(
