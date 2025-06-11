@@ -135,6 +135,7 @@ function(packages)
 endfunction()
 
 function(build_unit_test)
+    set(ColoredOutput "${Blue}[${PROJECT_NAME}]:${ColourReset}")
     set(options)
     set(one_value_args)
     set(multi_value_args SOURCES TEST_SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
@@ -147,7 +148,7 @@ function(build_unit_test)
 
     # This goes through all of our sources and checks if they are valid sources 
     foreach(EACH_UNIT_TEST_SOURCE ${DEMOS_ARGS_TEST_SOURCES})
-        message("-- [ENGINE] Testing '${EACH_UNIT_TEST_SOURCE}'")
+        message(STATUS "${ColoredOutput} Testing '${EACH_UNIT_TEST_SOURCE}'${ColourReset}")
     endforeach()
 
     find_package(ut REQUIRED CONFIG)
@@ -205,28 +206,8 @@ function(build_application)
     
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
 
-    # target_compile_options(${PROJECT_NAME} PRIVATE
-    #     -g
-    #     --coverage
-    #     -fprofile-arcs
-    #     -ftest-coverage
-    #     -Werror
-    #     -Wall
-    #     -Wextra
-    #     -Wshadow
-    #     -Wnon-virtual-dtor
-    #     -Wno-gnu-statement-expression
-    #     -pedantic
-    # )
-
-    # target_link_options(${PROJECT_NAME} PRIVATE
-    #     --coverage
-    #     -fprofile-arcs
-    #     -ftest-coverage
-    # )
-
     foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        message("-- [${PROJECT_NAME}] Added Packages ${PACKAGE}")
+        message("${Blue}-- [${PROJECT_NAME}] Added Packages ${PACKAGE}")
         find_package(${PACKAGE} REQUIRED)
     endforeach()
 
@@ -237,7 +218,8 @@ endfunction()
 
 # Used by the core engine itself. Users SHOULD NOT be using this function
 function(build_core_library)
-    message("-- [ENGINE] Building core engine library")
+    set(ColoredOutput "${Blue}[${PROJECT_NAME}]:${ColourReset}")
+    message(STATUS "${ColoredOutput} Building core engine library")
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
@@ -257,7 +239,7 @@ function(build_core_library)
     # Setting up unit tests part of the build process
     # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
     if(${DEMOS_ARGS_ENABLE_TESTS})
-        message("-- [ENGINE] Enabling Unit Tests")
+        message(STATUS "${ColoredOutput} Enabling Unit Tests")
         build_unit_test(
             TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
             LINK_PACKAGES atlas
@@ -267,26 +249,60 @@ function(build_core_library)
     # So if we were to add  Editor this would do add_subdirectory(Editor)
     # Usage: build_library(DIRECTORIES Editor TestApp)
     foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
-        message("-- [ENGINE] Added \"${SUBDIRS}\"")
+        message(STATUS "${ColoredOutput} Added \"${SUBDIRS}\"")
         add_subdirectory(${SUBDIRS})
     endforeach()
-    
-    if(UNIX AND NOT APPLE)
-    message("ON LINUX SETTING COMPILE FLAGS")
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        -g -Wall -Wextra -Wno-missing-field-initializers -Wshadow
-    )
-    else()
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
-    )
-    endif(UNIX AND NOT APPLE)
 
-    # target_compile_options(${PROJECT_NAME} PRIVATE)
+    # Setting compiler arguments based on specific build_type specifications
+    if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux") # Sets compiler arguments with -msse4.1 on Windows and Linux because required when in debug mode
+        message(STATUS "${ColoredOutput} Current Build System --- ${CMAKE_SYSTEM_NAME}")
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+            )
+        elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+            )
+        else()
+            message(STATUS "${ColoredOutput} Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+            )
+        endif()
+    else() # Set compiler arguments on Apple (darwin)
+        message(STATUS "${ColoredOutput} Current Build System --- ${CMAKE_SYSTEM_NAME}")
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+            message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        else()
+            message(STATUS "${ColoredOutput} Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
+            target_compile_options(
+                ${PROJECT_NAME}
+                PUBLIC
+                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+            )
+        endif()
+    endif()
 
     generate_compile_commands()
 
