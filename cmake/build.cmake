@@ -43,8 +43,9 @@ function(generate_compile_commands)
     )
 endfunction()
 
-function(add_clang_tidy)
+function(enable_clang_tidy)
 # This is working clang-tidy configuration
+# On your current host platform checks if clang-tidy is available
 find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
 
 if(CLANG_TIDY_EXECUTABLE)
@@ -53,13 +54,12 @@ if(CLANG_TIDY_EXECUTABLE)
     set(CLANG_TIDY_CONFIG_FILE "clang-tidy.conf")
     set(CLANG_TIDY_SETUP "${CLANG_TIDY_EXECUTABLE}" "--config-file=${CLANG_TIDY_CONFIG_FILE}")
     set_target_properties(${TARGET} PROPERTIES CXX_CLANG_TIDY "${CLANG_TIDY_SETUP}")
+else()
+    message(STATUS "clang-tidy not found!")
 endif()
 
 set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES Off)
 endfunction()
-
-
-set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/atlas)
 
 function(packages)
     set(options)
@@ -87,7 +87,6 @@ function(packages)
     find_package(glm REQUIRED)
     find_package(fmt REQUIRED)
     find_package(spdlog REQUIRED)
-    find_package(box2d REQUIRED)
     find_package(imguidocking REQUIRED)
 
     find_package(Jolt REQUIRED)
@@ -97,7 +96,7 @@ function(packages)
     find_package(nfd REQUIRED)
 
     foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
-        message(${Blue} "-- [ENGINE] Added Package ${PACKAGE_NAME}")
+        message(${Blue} "-- [${PROJECT_NAME}] Added Package ${PACKAGE_NAME}")
         find_package(${PACKAGE_NAME} REQUIRED)
     endforeach()
 
@@ -116,7 +115,6 @@ function(packages)
         PUBLIC
         glfw
         ${OPENGL_LIBRARIES}
-        # Vulkan::Vulkan
         ${VULKAN_LINK_LIBS}
         vulkan-headers::vulkan-headers
         imguidocking::imguidocking
@@ -180,7 +178,7 @@ function(build_unit_test)
         -ftest-coverage
     )
 
-    target_include_directories(unit_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_LIST_DIR}/engine3d/core)
+    target_include_directories(unit_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_LIST_DIR}/atlas/core) 
     
     # Specifying to cmake to run unit_test before engine3d's Editor runs
     # [unit_test required -> [then do] -> Editor]
@@ -230,14 +228,14 @@ function(build_core_library)
         "${multi_value_args}"
         ${ARGN}
     )
-    option(${DEMOS_ARGS_ENABLE_TESTS} "[ENGINE] Enabling unit testing" OFF)
+    option(${DEMOS_ARGS_ENABLE_TESTS} "[${PROJECT_NAME}] Enabling unit testing" OFF)
 
     set(CMAKE_CXX_STANDARD 23)
 
-    add_clang_tidy()
+    # Enables clang-tidy
+    enable_clang_tidy()
 
     # Setting up unit tests part of the build process
-    # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
     if(${DEMOS_ARGS_ENABLE_TESTS})
         message(STATUS "${ColoredOutput} Enabling Unit Tests")
         build_unit_test(
@@ -255,37 +253,20 @@ function(build_core_library)
 
     # Setting compiler arguments based on specific build_type specifications
     if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows" OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux") # Sets compiler arguments with -msse4.1 on Windows and Linux because required when in debug mode
-        message(STATUS "${ColoredOutput} Current Build System --- ${CMAKE_SYSTEM_NAME}")
-        if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-            message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
-            target_compile_options(
-                ${PROJECT_NAME}
-                PUBLIC
-                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
-            )
-        elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-            message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
-            target_compile_options(
-                ${PROJECT_NAME}
-                PUBLIC
-                -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
-            )
-        else()
-            message(STATUS "${ColoredOutput} Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
-            target_compile_options(
-                ${PROJECT_NAME}
-                PUBLIC
-                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
-            )
-        endif()
+        message(STATUS "${ColoredOutput} Current building on ${CMAKE_SYSTEM_NAME}")
+        target_compile_options(
+            ${PROJECT_NAME} PUBLIC -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow -msse4.1
+        )
+
     else() # Set compiler arguments on Apple (darwin)
-        message(STATUS "${ColoredOutput} Current Build System --- ${CMAKE_SYSTEM_NAME}")
+        # message(STATUS "${ColoredOutput} Current Build System --- ${CMAKE_SYSTEM_NAME}")
+        message(STATUS "${ColoredOutput} Current building on ${CMAKE_SYSTEM_NAME}")
         if("${CMAKE_BUILD_TYPE}" STREQUAL "Release")
             message(STATUS "${ColoredOutput} Setting compile arguments for Release Build")
             target_compile_options(
                 ${PROJECT_NAME}
                 PUBLIC
-                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
+                -O3 -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
             )
         elseif("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
             message(STATUS "${ColoredOutput} Setting compile arguments for Debug Build")
@@ -294,17 +275,12 @@ function(build_core_library)
                 PUBLIC
                 -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
             )
-        else()
-            message(STATUS "${ColoredOutput} Setting compile arguments for Default built with ${CMAKE_BUILD_TYPE} Build")
-            target_compile_options(
-                ${PROJECT_NAME}
-                PUBLIC
-                -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
-            )
         endif()
     endif()
 
     generate_compile_commands()
+
+    set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/atlas)
 
     target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
     target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/core)
@@ -336,7 +312,7 @@ function(build_library)
     # Setting up unit tests part of the build process
     # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
     if(${DEMOS_ARGS_ENABLE_TESTS})
-        message("-- [ENGINE] Enabling Unit Tests")
+        message("-- [${PROJECT_NAME}] Enabling Unit Tests")
         build_unit_test(
             TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
             LINK_PACKAGES ${LINK_PACKAGES}
