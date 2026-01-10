@@ -41,6 +41,25 @@ function(generate_compile_commands)
         OUTPUT ${CMAKE_BINARY_DIR}/compile_commands.json
         COMMAND ${CMAKE_COMMAND} -B${CMAKE_BINARY_DIR} -S${CMAKE_SOURCE_DIR}
     )
+
+endfunction()
+
+
+function(modules_generate_compile_commands)
+    add_custom_target(
+        copy-compile-commands ALL
+        DEPENDS
+            ${CMAKE_SOURCE_DIR}/compile_commands.json
+    )
+
+    # Always run this custom target by making it depend on ALL
+    add_custom_target(copy_compile_commands ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_BINARY_DIR}/compile_commands.json
+        ${CMAKE_SOURCE_DIR}/compile_commands.json
+        DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
+    )
+
 endfunction()
 
 set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/atlas)
@@ -114,6 +133,30 @@ function(packages)
 
         flecs::flecs_static
         nfd::nfd
+        ${DEMOS_ARGS_LINK_PACKAGES}
+    )
+endfunction()
+
+function(set_packages)
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+
+    foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
+        message(${Blue} "-- [ENGINE] Added Package ${PACKAGE_NAME}")
+        find_package(${PACKAGE_NAME} REQUIRED)
+    endforeach()
+
+
+    target_link_libraries(
+        ${PROJECT_NAME}
+        PUBLIC
         ${DEMOS_ARGS_LINK_PACKAGES}
     )
 endfunction()
@@ -329,5 +372,48 @@ function(build_library)
         ${PROJECT_NAME}
         PUBLIC
         ${DEMOS_ARGS_LINK_PACKAGES}
+    )
+endfunction()
+
+
+
+function(static_library)
+    # Parse CMake function parameters
+    set(options)
+    set(one_value_args)
+    set(multi_value_args SOURCES INCLUDE_DIRS DIRECTORIES ENABLE_TESTS UNIT_TEST_SOURCES PACKAGES LINK_PACKAGES NO_PACKAGES LOCAL_PACKAGES)
+    
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+
+    set(CMAKE_CXX_STANDARD 23)
+
+    # Setting up unit tests part of the build process
+    # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
+    if(${DEMOS_ARGS_ENABLE_TESTS})
+        message("-- [ENGINE] Enabling Unit Tests")
+        build_unit_test(
+            TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
+            LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES} ${DEMOS_ARGS_LOCAL_PACKAGES}
+        )
+    endif()
+
+    add_library(${PROJECT_NAME} STATIC)
+
+    target_include_directories(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_PUBLIC_INCLUDE_DIRS})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${DEMOS_ARGS_PRIVATE_INCLUDE_DIRS})
+    # This is used because if we do not have this users systems may give them a linked error with oldnames.lib
+    # Usage - used to suppress that lld-link error and use the defaulted linked .library
+    if(MSVC)
+    target_compile_options(${PROJECT_NAME} PUBLIC "/Z1" "/NOD")
+    endif(MSVC)
+
+    set_packages(
+        PACKAGES ${DEMOS_ARGS_PACKAGES}
+        LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
     )
 endfunction()
