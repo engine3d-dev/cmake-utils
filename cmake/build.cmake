@@ -1,6 +1,28 @@
 # Generate compile commands for anyone using our libraries.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "") # works (in creating the compile_commands.json file)
 
+
+string(ASCII 27 Esc)
+set(ColourReset "${Esc}[m")
+set(ColourBold  "${Esc}[1m")
+set(Red         "${Esc}[31m")
+set(Green       "${Esc}[32m")
+set(Yellow      "${Esc}[33m")
+set(Blue        "${Esc}[34m")
+set(Magenta     "${Esc}[35m")
+set(Cyan        "${Esc}[36m")
+set(White       "${Esc}[37m")
+set(BoldRed     "${Esc}[1;31m")
+set(BoldGreen   "${Esc}[1;32m")
+set(BoldYellow  "${Esc}[1;33m")
+set(BoldBlue    "${Esc}[1;34m")
+set(BoldMagenta "${Esc}[1;35m")
+set(BoldCyan    "${Esc}[1;36m")
+set(BoldWhite   "${Esc}[1;37m")
+set(ColorReset  "${Esc}[m")
+set(ColorGreen  "${Esc}[32m")
+set(ColorBlue   "${Esc}[34m") # This is the code for Blue
+
 function(generate_compile_commands)
     # Copy to compile_commands.json for .clangd
     add_custom_target(
@@ -44,99 +66,6 @@ function(generate_compile_commands)
 
 endfunction()
 
-
-function(modules_generate_compile_commands)
-    add_custom_target(
-        copy-compile-commands ALL
-        DEPENDS
-            ${CMAKE_SOURCE_DIR}/compile_commands.json
-    )
-
-    # Always run this custom target by making it depend on ALL
-    add_custom_target(copy_compile_commands ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_BINARY_DIR}/compile_commands.json
-        ${CMAKE_SOURCE_DIR}/compile_commands.json
-        DEPENDS ${CMAKE_BINARY_DIR}/compile_commands.json
-    )
-
-endfunction()
-
-set(ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/atlas)
-
-function(packages)
-    set(options)
-    set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
-    cmake_parse_arguments(DEMOS_ARGS
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
-    
-    # This is used because if we do not have this users systems may give them a linked error with oldnames.lib
-    # Usage - used to suppress that lld-link error and use the defaulted linked .library
-    if(MSVC)
-    target_compile_options(${PROJECT_NAME} PUBLIC "/Z1" "/NOD")
-    endif(MSVC)
-
-    find_package(glfw3 REQUIRED)
-    find_package(Vulkan REQUIRED)
-    find_package(VulkanHeaders REQUIRED)
-    if(UNIX AND NOT APPLE)
-    endif(UNIX AND NOT APPLE)
-
-    find_package(glm REQUIRED)
-    find_package(fmt REQUIRED)
-    find_package(spdlog REQUIRED)
-    find_package(box2d REQUIRED)
-    find_package(imguidocking REQUIRED)
-
-    find_package(Jolt REQUIRED)
-    find_package(yaml-cpp REQUIRED)
-    find_package(stb REQUIRED)
-    find_package(flecs REQUIRED)
-    find_package(nfd REQUIRED)
-
-    foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
-        message(${Blue} "-- [ENGINE] Added Package ${PACKAGE_NAME}")
-        find_package(${PACKAGE_NAME} REQUIRED)
-    endforeach()
-
-    set(VULKAN_LINK_LIBS "")
-
-    if(WIN32)
-        list(${VULKAN_LINK_LIBS} APPEND Vulkan::Vulkan)
-    endif(WIN32)
-
-    if(UNIX AND NOT APPLE)
-        list(${VULKAN_LINK_LIBS} APPEND Vulkan::Loader)
-    endif(UNIX AND NOT APPLE)
-
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PUBLIC
-        glfw
-        ${OPENGL_LIBRARIES}
-        # Vulkan::Vulkan
-        ${VULKAN_LINK_LIBS}
-        vulkan-headers::vulkan-headers
-        imguidocking::imguidocking
-        glm::glm
-        fmt::fmt
-        spdlog::spdlog
-
-        Jolt::Jolt
-        yaml-cpp
-        stb::stb
-
-        flecs::flecs_static
-        nfd::nfd
-        ${DEMOS_ARGS_LINK_PACKAGES}
-    )
-endfunction()
-
 function(set_packages)
     set(options)
     set(one_value_args)
@@ -149,7 +78,6 @@ function(set_packages)
     )
 
     foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES})
-        message(${Blue} "-- [ENGINE] Added Package ${PACKAGE_NAME}")
         find_package(${PACKAGE_NAME} REQUIRED)
     endforeach()
 
@@ -174,7 +102,7 @@ function(build_unit_test)
 
     # This goes through all of our sources and checks if they are valid sources 
     foreach(EACH_UNIT_TEST_SOURCE ${DEMOS_ARGS_TEST_SOURCES})
-        message("-- [ENGINE] Testing '${EACH_UNIT_TEST_SOURCE}'")
+        message(STATUS "${BoldBlue}[${PROJECT_NAME}]:${ColorReset} Testing '${EACH_UNIT_TEST_SOURCE}'")
     endforeach()
 
     find_package(ut REQUIRED CONFIG)
@@ -205,8 +133,6 @@ function(build_unit_test)
         -fprofile-arcs
         -ftest-coverage
     )
-
-    target_include_directories(unit_test PRIVATE ${CMAKE_CURRENT_LIST_DIR}/tests ${CMAKE_CURRENT_LIST_DIR}/engine3d/core)
     
     # Specifying to cmake to run unit_test before engine3d's Editor runs
     # [unit_test required -> [then do] -> Editor]
@@ -229,159 +155,21 @@ function(build_application)
     set(CMAKE_CXX_STANDARD 23)
 
     add_executable(${PROJECT_NAME} ${DEMOS_ARGS_SOURCES})
-    
-    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
-
-    # target_compile_options(${PROJECT_NAME} PRIVATE
-    #     -g
-    #     --coverage
-    #     -fprofile-arcs
-    #     -ftest-coverage
-    #     -Werror
-    #     -Wall
-    #     -Wextra
-    #     -Wshadow
-    #     -Wnon-virtual-dtor
-    #     -Wno-gnu-statement-expression
-    #     -pedantic
-    # )
-
-    # target_link_options(${PROJECT_NAME} PRIVATE
-    #     --coverage
-    #     -fprofile-arcs
-    #     -ftest-coverage
-    # )
 
     foreach(PACKAGE ${DEMOS_ARGS_PACKAGES})
-        message("-- [${PROJECT_NAME}] Added Packages ${PACKAGE}")
         find_package(${PACKAGE} REQUIRED)
     endforeach()
 
+    target_include_directories(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_INCLUDES})
     target_link_libraries(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_LINK_PACKAGES})
     
 endfunction()
-
-
-# Used by the core engine itself. Users SHOULD NOT be using this function
-function(build_core_library)
-    message("-- [ENGINE] Building core engine library")
-    # Parse CMake function parameters
-    set(options)
-    set(one_value_args)
-    set(multi_value_args SOURCES UNIT_TEST_SOURCES INCLUDES DIRECTORIES ENABLE_TESTS PACKAGES LINK_PACKAGES NO_PACKAGES)
-    cmake_parse_arguments(DEMOS_ARGS
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
-    option(${DEMOS_ARGS_ENABLE_TESTS} "[ENGINE] Enabling unit testing" OFF)
-
-    set(CMAKE_CXX_STANDARD 23)
-
-    # Setting up unit tests part of the build process
-    # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
-    if(${DEMOS_ARGS_ENABLE_TESTS})
-        message("-- [ENGINE] Enabling Unit Tests")
-        build_unit_test(
-            TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
-            LINK_PACKAGES atlas
-        )
-    endif()
-    
-    # So if we were to add  Editor this would do add_subdirectory(Editor)
-    # Usage: build_library(DIRECTORIES Editor TestApp)
-    foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
-        message("-- [ENGINE] Added \"${SUBDIRS}\"")
-        add_subdirectory(${SUBDIRS})
-    endforeach()
-    
-    if(UNIX AND NOT APPLE)
-    message("ON LINUX SETTING COMPILE FLAGS")
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        -g -Wall -Wextra -Wno-missing-field-initializers -Wshadow
-    )
-    else()
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        -g -Werror -Wall -Wextra -Wno-missing-field-initializers -Wshadow
-    )
-    endif(UNIX AND NOT APPLE)
-
-    # target_compile_options(${PROJECT_NAME} PRIVATE)
-
-    generate_compile_commands()
-
-    target_include_directories(${PROJECT_NAME} PUBLIC ${ENGINE_INCLUDE_DIR})
-    target_include_directories(${PROJECT_NAME} PRIVATE ${ENGINE_INCLUDE_DIR}/core)
-
-    packages(
-        PACKAGES ${DEMOS_ARGS_PACKAGES} 
-        LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
-    )
-
-endfunction()
-
-
-
-function(build_library)
-    # Parse CMake function parameters
-    set(options)
-    set(one_value_args)
-    set(multi_value_args SOURCES PUBLIC_INCLUDES DIRECTORIES ENABLE_TESTS UNIT_TEST_SOURCES PACKAGES LINK_PACKAGES NO_PACKAGES)
-    
-    cmake_parse_arguments(DEMOS_ARGS
-        "${options}"
-        "${one_value_args}"
-        "${multi_value_args}"
-        ${ARGN}
-    )
-
-    set(CMAKE_CXX_STANDARD 23)
-
-    # Setting up unit tests part of the build process
-    # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
-    if(${DEMOS_ARGS_ENABLE_TESTS})
-        message("-- [ENGINE] Enabling Unit Tests")
-        build_unit_test(
-            TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
-            LINK_PACKAGES ${LINK_PACKAGES}
-        )
-    endif()
-
-    # So if we were to add  Editor this would do add_subdirectory(Editor)
-    # Usage: build_library(DIRECTORIES Editor TestApp)
-    foreach(SUBDIRS ${DEMOS_ARGS_DIRECTORIES})
-        message("-- [${PROJECT_NAME}] Added \"${SUBDIRS}\"")
-        add_subdirectory(${SUBDIRS})
-    endforeach()
-
-
-    target_include_directories(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_PUBLIC_INCLUDES})
-    target_include_directories(${PROJECT_NAME} PRIVATE ${DEMOS_ARGS_PRIVATE_INCLUDES})
-
-    foreach(PACKAGE_NAME ${DEMOS_ARGS_PACKAGES} )
-        message(${Blue} "-- [${PROJECT_NAME}] Added Package ${PACKAGE_NAME}")
-        find_package(${PACKAGE_NAME} REQUIRED)
-    endforeach()
-
-    target_link_libraries(
-        ${PROJECT_NAME}
-        PUBLIC
-        ${DEMOS_ARGS_LINK_PACKAGES}
-    )
-endfunction()
-
-
 
 function(static_library)
     # Parse CMake function parameters
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES INCLUDE_DIRS DIRECTORIES ENABLE_TESTS UNIT_TEST_SOURCES PACKAGES LINK_PACKAGES NO_PACKAGES LOCAL_PACKAGES)
+    set(multi_value_args SOURCES INCLUDE_DIRS DIRECTORIES ENABLE_TESTS UNIT_TEST_SOURCES PACKAGES LINK_PACKAGES)
     
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
@@ -395,10 +183,16 @@ function(static_library)
     # Setting up unit tests part of the build process
     # set(ENABLING_TESTS ${DEMOS_ARGS_ENABLE_TESTS})
     if(${DEMOS_ARGS_ENABLE_TESTS})
-        message("-- [ENGINE] Enabling Unit Tests")
+        message(STATUS "${BoldBlue}[${PROJECT_NAME}]:${ColorReset} Testing Enabled")
         build_unit_test(
-            TEST_SOURCES ${DEMOS_ARGS_UNIT_TEST_SOURCES}
-            LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES} ${DEMOS_ARGS_LOCAL_PACKAGES}
+            TEST_SOURCES
+            ${DEMOS_ARGS_UNIT_TEST_SOURCES}
+
+            PACKAGES
+            ${DEMOS_ARGS_PACKAGES}
+
+            LINK_PACKAGES
+            ${DEMOS_ARGS_LINK_PACKAGES}
         )
     endif()
 
