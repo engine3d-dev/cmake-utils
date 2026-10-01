@@ -193,7 +193,7 @@ function(build_demos_exe)
     foreach(DEMO_SOURCE ${DEMOS_ARGS_DEMO_SOURCES})
         get_filename_component(DEMO_NAME ${DEMO_SOURCE} NAME_WE)
 
-
+        message(STATUS "${BoldBlue}[${PROJECT_NAME}]:${ColorReset} Building demo executable '${DEMO_NAME}' from source '${DEMO_SOURCE}'")
         add_executable(${DEMO_NAME} ${DEMO_SOURCE})
 
         target_include_directories(${DEMO_NAME} PUBLIC ${DEMOS_ARGS_PUBLIC_INCLUDE_DIRS})
@@ -203,13 +203,13 @@ function(build_demos_exe)
         if(MSVC)
         target_compile_options(${DEMO_NAME} PUBLIC "/Z1" "/NOD")
         endif(MSVC)
+
+        set_packages(
+            PROJECT_NAME_VAR ${DEMO_NAME}
+            PACKAGES ${DEMOS_ARGS_PACKAGES}
+            LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
+        )
     endforeach()
-    
-    set_packages(
-        PROJECT_NAME_VAR ${DEMO_NAME}
-        PACKAGES ${DEMOS_ARGS_PACKAGES}
-        LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
-    )
 
 endfunction()
 
