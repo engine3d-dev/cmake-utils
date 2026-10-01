@@ -69,7 +69,14 @@ endfunction()
 function(set_packages)
     set(options)
     set(one_value_args)
-    set(multi_value_args SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
+    set(multi_value_args PROJECT_NAME_VAR SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
+
+    if(NOT DEMOS_ARGS_PROJECT_NAME_VAR)
+        set(DEMOS_ARGS_PROJECT_NAME_VAR ${PROJECT_NAME})
+    endif()
+
+    message(STATUS "${BoldBlue}[${DEMOS_ARGS_PROJECT_NAME_VAR}]:${ColorReset} Setting up packages for ${DEMOS_ARGS_PROJECT_NAME_VAR}")
+
     cmake_parse_arguments(DEMOS_ARGS
         "${options}"
         "${one_value_args}"
@@ -83,7 +90,7 @@ function(set_packages)
 
 
     target_link_libraries(
-        ${PROJECT_NAME}
+        ${DEMOS_ARGS_PROJECT_NAME_VAR}
         PUBLIC
         ${DEMOS_ARGS_LINK_PACKAGES}
     )
@@ -163,6 +170,47 @@ function(build_application)
     target_include_directories(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_INCLUDES})
     target_link_libraries(${PROJECT_NAME} PUBLIC ${DEMOS_ARGS_LINK_PACKAGES})
     
+endfunction()
+
+
+function(build_demos_exe)
+    set(options)
+    set(one_value_args)
+    set(multi_value_args DEMO_SOURCES INCLUDES DIRECTORIES PACKAGES LINK_PACKAGES)
+
+    cmake_parse_arguments(DEMOS_ARGS
+        "${options}"
+        "${one_value_args}"
+        "${multi_value_args}"
+        ${ARGN}
+    )
+
+    set(CMAKE_CXX_STANDARD 23)
+
+    # add_library(${PROJECT_NAME} STATIC)
+
+    # Iterate all demo sources provided and create an executable for each one
+    foreach(DEMO_SOURCE ${DEMOS_ARGS_DEMO_SOURCES})
+        get_filename_component(DEMO_NAME ${DEMO_SOURCE} NAME_WE)
+
+
+        add_executable(${DEMO_NAME} ${DEMO_SOURCE})
+
+        target_include_directories(${DEMO_NAME} PUBLIC ${DEMOS_ARGS_PUBLIC_INCLUDE_DIRS})
+        target_include_directories(${DEMO_NAME} PRIVATE ${DEMOS_ARGS_PRIVATE_INCLUDE_DIRS})
+        # This is used because if we do not have this users systems may give them a linked error with oldnames.lib
+        # Usage - used to suppress that lld-link error and use the defaulted linked .library
+        if(MSVC)
+        target_compile_options(${DEMO_NAME} PUBLIC "/Z1" "/NOD")
+        endif(MSVC)
+    endforeach()
+    
+    set_packages(
+        PROJECT_NAME_VAR ${DEMO_NAME}
+        PACKAGES ${DEMOS_ARGS_PACKAGES}
+        LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
+    )
+
 endfunction()
 
 function(static_library)
