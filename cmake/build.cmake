@@ -73,6 +73,7 @@ function(set_packages)
 
     if(NOT DEMOS_ARGS_PROJECT_NAME_VAR)
         set(DEMOS_ARGS_PROJECT_NAME_VAR ${PROJECT_NAME})
+        message(STATUS "${BoldBlue}[${DEMOS_ARGS_PROJECT_NAME_VAR}]:${ColorReset} No project name provided, using default project name '${DEMOS_ARGS_PROJECT_NAME_VAR}'")
     endif()
 
     message(STATUS "${BoldBlue}[${DEMOS_ARGS_PROJECT_NAME_VAR}]:${ColorReset} Setting up packages for ${DEMOS_ARGS_PROJECT_NAME_VAR}")
@@ -255,6 +256,7 @@ function(static_library)
     endif(MSVC)
 
     set_packages(
+        PROJECT_NAME_VAR ${PROJECT_NAME}
         PACKAGES ${DEMOS_ARGS_PACKAGES}
         LINK_PACKAGES ${DEMOS_ARGS_LINK_PACKAGES}
     )
